@@ -106,4 +106,5 @@ Este projeto está sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para d
 ---
 
 **⚠️ Aviso:** Este projeto é apenas para fins educacionais. Respeite os termos de uso do Letterboxd.
+
 **🍿 Me siga no Letterboxd:** [letterboxd.com/guickz](https://letterboxd.com/guickz/) 📽️

@@ -1,110 +1,69 @@
-# 🎬 Letterboxd Recommender
+# Letterboxd Recommender
 
-Um projeto de estudo para criar um sistema inteligente de recomendação de filmes baseado no perfil do Letterboxd do usuário.
+Sistema de recomendação de filmes baseado no perfil público do Letterboxd (favoritos, histórico completo de filmes assistidos, notas, reviews e watchlist), enriquecido com metadados e disponibilidade de streaming no Brasil via TMDB API. 100% gratuito.
 
-## 📋 Status Atual
+## Funcionalidades
 
-**Versão:** 1.0 - Sorteador Básico  
-**Status:** ✅ Funcional
+- **Entrada simples por username:** basta digitar o `@` do Letterboxd para sincronizar favoritos, filmes assistidos, notas, reviews e watchlist em cache local (SQLite).
+- **4 opções por vez com trava:** exibe exatamente 4 filmes inéditos por rodada, com ações de **Gostei** (fixa o filme e direciona as próximas buscas para aquela vibe), **Não gostei** (substitui na hora e evita aquele estilo), **Já vi** (substitui e reforça o perfil) e **Pular** (substitui e evita no momento).
+- **Análise completa do perfil:** lê 100% dos filmes assistidos e das reviews escritas pelo usuário, cruzando diretores, gêneros, temas, elenco, décadas e idioma.
+- **Filtros de contexto:** Mood (Leve, Tenso, Reflexivo, Épico), Origem (Mundo todo ou Watchlist), Nível de descoberta (Popular, Equilibrado, Cult) e Duração máxima.
+- **Apenas filmes:** não recomenda séries nem minisséries; documentários só entram quando o histórico do usuário demonstra afinidade.
+- **Notas e streaming:** exibe a nota oficial do Letterboxd e os streamings disponíveis no Brasil.
 
-Atualmente o projeto funciona como um **sorteador aleatório** que:
-- Recebe o username do Letterboxd
-- Faz web scraping da watchlist do usuário
-- Sorteia um filme aleatório da lista
-- Exibe o resultado em uma interface web simples
+## Como executar localmente
 
-## 🚀 Como Executar
+### 1. Pré-requisitos
+- Python 3.10+ (recomendado Python 3.12)
+- Chave gratuita da API do [TMDB](https://www.themoviedb.org/settings/api)
 
-### Pré-requisitos
-- Python 3.7+
-- pip
-
-### Instalação
-1. Clone o repositório:
+### 2. Instalação
 ```bash
-git clone https://github.com/SEU_USUARIO/letterboxd-recommender.git
+git clone https://github.com/guimevn/letterboxd-recommender.git
 cd letterboxd-recommender
-```
 
-2. Crie e ative o ambiente virtual:
-```bash
 python -m venv venv
 # Windows
 venv\Scripts\activate
 # Linux/Mac
 source venv/bin/activate
-```
 
-3. Instale as dependências:
-```bash
 pip install -r requirements.txt
 ```
 
-4. Execute o servidor:
+### 3. Variáveis de ambiente
+Copie `.env.example` para `.env` e preencha sua chave gratuita do TMDB:
+```env
+TMDB_READ_ACCESS_TOKEN=seu_token_aqui
+TMDB_API_KEY=sua_api_key_aqui
+```
+O arquivo `.env` está listado no `.gitignore` e nunca deve ser enviado ao repositório.
+
+### 4. Executar
 ```bash
 uvicorn main:app --reload
 ```
+Abra `http://127.0.0.1:8000` no navegador.
 
-5. Acesse `http://127.0.0.1:8000` no seu navegador
-
-## 🛠️ Tecnologias Utilizadas
-
-- **Backend:** Python, FastAPI, Uvicorn
-- **Web Scraping:** Requests, BeautifulSoup4
-- **Frontend:** HTML, CSS, JavaScript vanilla
-- **Outras:** Lxml para parsing
-
-## 📁 Estrutura do Projeto
+## Estrutura do projeto
 
 ```
 letterboxd-recommender/
+├── app/
+│   ├── db.py           # Cache SQLite local
+│   ├── letterboxd.py   # Coleta assíncrona do perfil, favoritos, watchlist e reviews
+│   ├── tmdb.py         # Cliente TMDB e notas do Letterboxd
+│   └── recommender.py  # Motor de perfil de gosto e recomendações
 ├── frontend/
-│   ├── index.html          # Interface web
-│   └── script.js           # Lógica do frontend
-├── venv/                   # Ambiente virtual
-├── main.py                 # API FastAPI
-├── scraper.py              # Web scraping do Letterboxd
-├── requirements.txt        # Dependências do projeto
-└── README.md              # Este arquivo
+│   ├── index.html      # Interface mobile-first centralizada
+│   └── app.js          # Lógica de 4 opções, trava e feedback na sessão
+├── tests/
+│   └── test_smoke.py   # Teste ponta a ponta
+├── main.py             # API FastAPI + servidor do frontend
+├── requirements.txt
+└── .env.example
 ```
 
-## 🎯 Roadmap - Funcionalidades Futuras
+## Licença
 
-### Versão 2.0 - Recomendador Inteligente
-- [ ] Análise de padrões temporais (dias da semana, época do ano)
-- [ ] Consideração de feriados e datas especiais
-- [ ] Análise do histórico de filmes logados
-- [ ] Sistema de categorias personalizáveis
-
-### Versão 3.0 - IA e Análise Avançada
-- [ ] Integração com APIs de IA para análise mais sofisticada
-- [ ] Análise de sentimentos das reviews
-- [ ] Recomendações baseadas em mood/contexto
-- [ ] Sistema de filtros avançados
-
-### Melhorias Técnicas
-- [ ] Banco de dados para cache de dados
-- [ ] Autenticação com Letterboxd
-- [ ] API própria para outras aplicações
-- [ ] Interface mais robusta (possivelmente React)
-- [ ] Deploy em produção
-
-## 🤝 Contribuições
-
-Este é um projeto de estudo pessoal, mas sugestões e feedback são sempre bem-vindos! 
-
-## 📝 Notas de Desenvolvimento
-
-- **Objetivo:** Aprender programação através de um projeto prático
-- **Metodologia:** Desenvolvimento incremental, começando simples e evoluindo
-- **Aprendizados:** Web scraping, APIs, frontend/backend, estruturação de projetos
-
-## 📄 Licença
-
-Este projeto está sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
-
----
-
-**⚠️ Aviso:** Este projeto é apenas para fins educacionais. Respeite os termos de uso do Letterboxd.
-
-**🍿 Me siga no Letterboxd:** [letterboxd.com/guickz](https://letterboxd.com/guickz/) 📽️
+MIT. Veja o arquivo [LICENSE](LICENSE).

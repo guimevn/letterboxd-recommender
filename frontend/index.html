@@ -1,15 +1,169 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR" class="dark">
 <head>
-    <title>Letterboxd Recommender</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Letterboxd Recommender</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            lb: {
+              bg: '#14181c',
+              card: '#1d232a',
+              border: '#2c3440',
+              green: '#00e054',
+              orange: '#ff8000',
+              blue: '#40bcf4',
+              muted: '#9ab',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #14181c; color: #e5e7eb; font-family: Inter, system-ui, -apple-system, sans-serif; }
+    .poster-card { transition: transform .18s ease, border-color .18s ease, opacity .18s ease; }
+    .poster-card:hover { transform: translateY(-2px); }
+    .card-locked { border-color: #00e054 !important; box-shadow: 0 0 0 1px rgba(0, 224, 84, 0.35); }
+    .pill-active { background-color: #00e054 !important; color: #0b1115 !important; font-weight: 600; }
+  </style>
 </head>
-<body>
-    <h1>Sorteador de Filmes da Watchlist</h1>
-    <input type="text" id="usernameInput" placeholder="Usuário do Letterboxd">
-    <button id="sortearBtn">Sortear Filme</button>
-    <div id="resultado">
+<body class="min-h-screen flex flex-col">
+  <!-- Centered Top Bar (Logo Only) -->
+  <header class="border-b border-lb-border/70 bg-lb-bg/95 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-2xl mx-auto px-4 py-2.5 flex items-center justify-center">
+      <button id="logoHomeBtn" type="button" class="flex items-center justify-center gap-2 cursor-pointer hover:opacity-90 transition">
+        <div class="flex gap-1">
+          <span class="w-2.5 h-2.5 rounded-full bg-lb-orange inline-block"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-lb-green inline-block"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-lb-blue inline-block"></span>
+        </div>
+        <h1 class="text-sm sm:text-base font-bold tracking-tight text-white">Letterboxd Recommender</h1>
+      </button>
     </div>
-    <script src="script.js"></script>
+  </header>
+
+  <!-- Main Centered Container -->
+  <main class="max-w-4xl mx-auto w-full px-3 py-3 flex-1 flex flex-col items-center justify-center">
+    <!-- Home / Empty State -->
+    <section id="emptyState" class="w-full max-w-md mx-auto text-center flex flex-col items-center -mt-20">
+      <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-3">
+        O que assistir hoje?
+      </h2>
+      <p class="text-lb-muted text-base mb-7 leading-relaxed">
+        Digite seu username e descubra quatro filmes novos baseados no seu gosto.
+      </p>
+
+      <form id="searchForm" class="flex items-center justify-center gap-2.5 w-full">
+        <div class="relative flex-1">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-lb-muted text-base">@</span>
+          <input
+            id="usernameInput"
+            type="text"
+            placeholder="seu username"
+            required
+            class="w-full pl-9 pr-4 py-3.5 rounded-xl bg-lb-card border border-lb-border text-base text-white placeholder-lb-muted focus:outline-none focus:border-lb-green text-center"
+          />
+        </div>
+        <button
+          id="submitBtn"
+          type="submit"
+          class="px-6 py-3.5 rounded-xl bg-lb-green hover:bg-emerald-400 text-slate-950 font-semibold text-base transition cursor-pointer shrink-0"
+        >
+          Buscar
+        </button>
+      </form>
+    </section>
+
+    <!-- Loading -->
+    <section id="loadingState" class="hidden text-center py-20">
+      <div class="inline-block w-9 h-9 border-4 border-lb-border border-t-lb-green rounded-full animate-spin mb-3"></div>
+      <p id="loadingText" class="text-white text-sm font-medium">Analisando seu perfil...</p>
+      <p class="text-xs text-lb-muted mt-1">Na primeira vez pode levar alguns segundos.</p>
+    </section>
+
+    <!-- Error -->
+    <section id="errorState" class="hidden w-full max-w-md mx-auto my-8 p-4 rounded-xl bg-red-950/50 border border-red-800 text-center">
+      <p id="errorText" class="text-red-200 text-sm"></p>
+    </section>
+
+    <!-- Dashboard -->
+    <section id="dashboard" class="hidden w-full space-y-2.5">
+      <!-- Compact Centered Profile -->
+      <div class="flex flex-wrap items-center justify-center gap-2 text-center">
+        <img id="userAvatar" src="" alt="" class="w-6 h-6 rounded-full object-cover bg-slate-800 border border-lb-border hidden" />
+        <h2 id="userDisplayName" class="text-sm font-bold text-white"></h2>
+        <a id="userLbLink" href="#" target="_blank" class="text-[11px] text-lb-blue hover:underline">Perfil</a>
+        <span id="userStats" class="text-[11px] text-lb-muted"></span>
+        <button
+          id="syncBtn"
+          type="button"
+          title="Sincronizar novamente com o Letterboxd"
+          class="px-2 py-0.5 rounded-md bg-lb-card hover:bg-slate-700 border border-lb-border text-[11px] text-lb-muted hover:text-white transition cursor-pointer"
+        >
+          Sincronizar
+        </button>
+      </div>
+
+      <!-- Centered Compact Filters -->
+      <div class="p-2.5 rounded-xl bg-lb-card/80 border border-lb-border flex flex-col items-center gap-2 text-[11px]">
+        <div class="flex flex-wrap items-center justify-center gap-1">
+          <button data-filter="mood" data-val="all" class="filter-pill pill-active px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Qualquer mood</button>
+          <button data-filter="mood" data-val="light" class="filter-pill px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Leve</button>
+          <button data-filter="mood" data-val="intense" class="filter-pill px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Tenso</button>
+          <button data-filter="mood" data-val="thoughtful" class="filter-pill px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Reflexivo</button>
+          <button data-filter="mood" data-val="epic" class="filter-pill px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Épico</button>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-center gap-1.5 pt-1.5 border-t border-lb-border/60 w-full">
+          <div class="flex items-center gap-1">
+            <button data-filter="source" data-val="all" class="filter-pill pill-active px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Mundo todo</button>
+            <button data-filter="source" data-val="watchlist" class="filter-pill px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Watchlist</button>
+          </div>
+          <div class="flex items-center gap-1">
+            <button data-filter="discovery" data-val="popular" class="filter-pill px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Popular</button>
+            <button data-filter="discovery" data-val="balanced" class="filter-pill pill-active px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Equilibrado</button>
+            <button data-filter="discovery" data-val="cult" class="filter-pill px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Cult</button>
+          </div>
+          <select id="runtimeSelect" class="px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border text-white focus:outline-none focus:border-lb-green">
+            <option value="">Qualquer duração</option>
+            <option value="100">Até 1h40</option>
+            <option value="125">Até 2h05</option>
+            <option value="150">Até 2h30</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Centered Refresh Action -->
+      <div class="flex items-center justify-center gap-3">
+        <button
+          id="refreshBtn"
+          type="button"
+          class="px-4 py-1.5 rounded-lg bg-lb-card hover:bg-slate-700 border border-lb-green/60 text-white font-semibold text-xs transition cursor-pointer"
+        >
+          <span id="refreshBtnText">Atualizar 4 opções</span>
+        </button>
+        <p id="lockedHint" class="text-[11px] text-lb-green hidden"></p>
+      </div>
+
+      <!-- 4-Card Grid (compact 2x2 on tablet/desktop, 1 col on mobile) -->
+      <div id="moviesGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+
+      <p id="noResultsMsg" class="hidden text-center text-lb-muted text-sm py-8">
+        Nenhum filme novo encontrado com esses filtros. Tente mudar o mood ou relaxar a duração.
+      </p>
+    </section>
+  </main>
+
+  <footer class="border-t border-lb-border/60 py-2 text-center text-[10px] text-lb-muted">
+    Dados fornecidos pelo TMDB, IMDb e Letterboxd
+  </footer>
+
+  <script src="/static/app.js"></script>
 </body>
 </html>

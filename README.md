@@ -1,6 +1,8 @@
 # Letterboxd Recommender
 
-Sistema de recomendação de filmes baseado no perfil público do Letterboxd (favoritos, histórico completo de filmes assistidos, notas, reviews e watchlist), enriquecido com metadados e disponibilidade de streaming no Brasil via TMDB API. 100% gratuito.
+**Acesse online agora:** https://letterboxd-recommender.guimevn.workers.dev
+
+Sistema gratuito de recomendação de filmes baseado no perfil público do Letterboxd (favoritos, histórico completo de filmes assistidos, notas, reviews e watchlist), enriquecido com metadados e disponibilidade de streaming no Brasil via TMDB API.
 
 ## Funcionalidades
 

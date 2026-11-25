@@ -1,5 +1,6 @@
 import asyncio
 import re
+import xml.etree.ElementTree as ET
 from typing import Any, Optional
 from bs4 import BeautifulSoup
 import httpx
@@ -186,6 +187,77 @@ async def _fetch_all_pages(client: Any, base_path: str, sem: asyncio.Semaphore) 
     return films
 
 
+async def _scrape_from_rss(uname: str) -> dict[str, Any]:
+    """Fallback using Letterboxd's official public RSS feed when datacenter IPs get 403 on HTML."""
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        resp = await client.get(f"{BASE_URL}/{uname}/rss/", headers=HEADERS, timeout=20)
+        if resp.status_code == 404:
+            raise LetterboxdError(f"Usuário '{uname}' não encontrado no Letterboxd.")
+        if resp.status_code != 200:
+            raise LetterboxdError(
+                f"Letterboxd retornou status {resp.status_code}. Tente novamente em alguns segundos."
+            )
+
+    root = ET.fromstring(resp.text)
+    ns = {
+        "letterboxd": "https://letterboxd.com",
+        "tmdb": "https://themoviedb.org",
+    }
+    channel_title = root.findtext("./channel/title") or uname
+    display_name = channel_title.replace("Letterboxd - ", "").strip() or uname
+
+    merged: dict[str, dict[str, Any]] = {}
+    for item in root.findall("./channel/item"):
+        title = item.findtext("letterboxd:filmTitle", namespaces=ns)
+        if not title:
+            continue
+        link = item.findtext("link") or ""
+        slug_match = re.search(r"/film/([^/]+)/?", link)
+        slug = slug_match.group(1) if slug_match else re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+
+        year_txt = item.findtext("letterboxd:filmYear", namespaces=ns)
+        year = int(year_txt) if year_txt and year_txt.isdigit() else None
+
+        rating_txt = item.findtext("letterboxd:memberRating", namespaces=ns)
+        rating = float(rating_txt) if rating_txt else None
+
+        liked_txt = (item.findtext("letterboxd:memberLike", namespaces=ns) or "").lower()
+        liked = liked_txt == "yes"
+
+        tmdb_txt = item.findtext("tmdb:movieId", namespaces=ns)
+        tmdb_id = int(tmdb_txt) if tmdb_txt and tmdb_txt.isdigit() else None
+
+        desc_html = item.findtext("description") or ""
+        desc_text = BeautifulSoup(desc_html, "lxml").get_text(" ", strip=True)
+        review_text = desc_text if len(desc_text) > 15 else None
+
+        if slug not in merged:
+            merged[slug] = {
+                "slug": slug,
+                "title": title,
+                "year": year,
+                "rating": rating,
+                "liked": liked,
+                "is_favorite": False,
+                "in_watched": True,
+                "in_watchlist": False,
+                "tmdb_id": tmdb_id,
+                "review_text": review_text,
+            }
+
+    if not merged:
+        raise LetterboxdError(
+            f"Nenhum filme encontrado no feed público de '{uname}'. Verifique se o perfil é público."
+        )
+
+    return {
+        "username": uname,
+        "display_name": display_name,
+        "avatar_url": None,
+        "films": list(merged.values()),
+    }
+
+
 async def scrape_user_profile(username: str) -> dict[str, Any]:
     uname = username.strip().lstrip("@").lower()
     if not uname or not re.match(r"^[a-z0-9_.-]+$", uname):
@@ -197,6 +269,8 @@ async def scrape_user_profile(username: str) -> dict[str, Any]:
         status, html = await _fetch_html(client, f"{BASE_URL}/{uname}/")
         if status == 404:
             raise LetterboxdError(f"Usuário '{uname}' não encontrado no Letterboxd.")
+        if status == 403:
+            return await _scrape_from_rss(uname)
         if status != 200:
             raise LetterboxdError(
                 f"Letterboxd retornou status {status}. Tente novamente em alguns segundos."

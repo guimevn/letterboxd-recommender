@@ -272,7 +272,9 @@ function renderProfile() {
   }
 
   const avgText = profile.avg_rating ? ` | Média ${profile.avg_rating}` : '';
-  els.userStats.textContent = `${profile.total_watched} assistidos | ${profile.total_watchlist} watchlist${avgText}`;
+  const wlText = profile.total_watchlist > 0 ? ` | ${profile.total_watchlist} watchlist` : '';
+  const watchedLabel = profile.total_watchlist > 0 ? 'assistidos' : 'logs analisados';
+  els.userStats.textContent = `${profile.total_watched} ${watchedLabel}${wlText}${avgText}`;
 }
 
 function renderSlots() {

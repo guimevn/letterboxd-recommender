@@ -38,9 +38,24 @@ def on_startup() -> None:
     db.init_db()
 
 
+@app.get("/health")
+def health():
+    return {"ok": True}
+
+
 @app.get("/")
 def serve_index():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+
+@app.get("/config.js")
+def serve_config_js():
+    return FileResponse(os.path.join(FRONTEND_DIR, "config.js"), media_type="application/javascript")
+
+
+@app.get("/app.js")
+def serve_app_js():
+    return FileResponse(os.path.join(FRONTEND_DIR, "app.js"), media_type="application/javascript")
 
 
 @app.post("/api/sync/{username}")

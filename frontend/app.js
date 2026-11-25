@@ -1,4 +1,5 @@
 const MAX_SLOTS = 4;
+const API_BASE = (window.API_BASE_URL || '').replace(/\/$/, '');
 
 const state = {
   username: localStorage.getItem('lb_username') || '',
@@ -132,7 +133,7 @@ async function fetchBatch({ resetSession = false, keepLocked = false } = {}) {
 
   try {
     let params = buildParams(needed, !resetSession);
-    let res = await fetch(`/api/recommendations/${encodeURIComponent(state.username)}?${params}`);
+    let res = await fetch(`${API_BASE}/api/recommendations/${encodeURIComponent(state.username)}?${params}`);
     let data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Erro ao buscar recomendações.');
 
@@ -142,7 +143,7 @@ async function fetchBatch({ resetSession = false, keepLocked = false } = {}) {
     if (incoming.length < needed && state.shownIds.size > 0) {
       state.shownIds.clear();
       const topUpParams = buildParams(needed, false);
-      const topUpRes = await fetch(`/api/recommendations/${encodeURIComponent(state.username)}?${topUpParams}`);
+      const topUpRes = await fetch(`${API_BASE}/api/recommendations/${encodeURIComponent(state.username)}?${topUpParams}`);
       const topUpData = await topUpRes.json();
       if (topUpRes.ok) {
         const existingIds = new Set(incoming.map(m => m.tmdb_id));
@@ -205,7 +206,7 @@ function replaceSingleSlot(slotIndex, tmdbId, reason) {
     state.lockedIds.delete(tmdbId);
     state.shownIds.add(tmdbId);
 
-    fetch(`/api/dismiss/${encodeURIComponent(state.username)}/${tmdbId}`, {
+    fetch(`${API_BASE}/api/dismiss/${encodeURIComponent(state.username)}/${tmdbId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason }),
@@ -213,14 +214,14 @@ function replaceSingleSlot(slotIndex, tmdbId, reason) {
 
     try {
       let params = buildParams(1, true);
-      let res = await fetch(`/api/recommendations/${encodeURIComponent(state.username)}?${params}`);
+      let res = await fetch(`${API_BASE}/api/recommendations/${encodeURIComponent(state.username)}?${params}`);
       let data = await res.json();
       let replacement = (data.recommendations || [])[0];
 
       if (!replacement && state.shownIds.size > 0) {
         state.shownIds.clear();
         params = buildParams(1, false);
-        res = await fetch(`/api/recommendations/${encodeURIComponent(state.username)}?${params}`);
+        res = await fetch(`${API_BASE}/api/recommendations/${encodeURIComponent(state.username)}?${params}`);
         data = await res.json();
         replacement = (data.recommendations || [])[0];
       }
@@ -246,7 +247,7 @@ async function syncProfile() {
   els.loadingText.textContent = `Sincronizando @${state.username} no Letterboxd...`;
 
   try {
-    const res = await fetch(`/api/sync/${encodeURIComponent(state.username)}`, { method: 'POST' });
+    const res = await fetch(`${API_BASE}/api/sync/${encodeURIComponent(state.username)}`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Erro ao sincronizar perfil.');
     await fetchBatch({ resetSession: true });

@@ -34,9 +34,9 @@
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
-  <!-- Centered Top Bar (Logo Only) -->
+  <!-- Centered Top Bar with Discreet Language Selector -->
   <header class="border-b border-lb-border/70 bg-lb-bg/95 backdrop-blur sticky top-0 z-30">
-    <div class="max-w-2xl mx-auto px-4 py-2.5 flex items-center justify-center">
+    <div class="max-w-4xl mx-auto px-4 py-2.5 relative flex items-center justify-center">
       <button id="logoHomeBtn" type="button" class="flex items-center justify-center gap-2 cursor-pointer hover:opacity-90 transition">
         <div class="flex gap-1">
           <span class="w-2.5 h-2.5 rounded-full bg-lb-orange inline-block"></span>
@@ -45,6 +45,17 @@
         </div>
         <h1 class="text-sm sm:text-base font-bold tracking-tight text-white">Letterboxd Recommender</h1>
       </button>
+
+      <select
+        id="langSelect"
+        aria-label="Language"
+        class="absolute right-3 px-2 py-1 rounded-md bg-lb-card border border-lb-border text-[11px] text-lb-muted hover:text-white focus:outline-none focus:border-lb-green cursor-pointer"
+      >
+        <option value="pt">PT</option>
+        <option value="en">EN</option>
+        <option value="es">ES</option>
+        <option value="fr">FR</option>
+      </select>
     </div>
   </header>
 
@@ -52,10 +63,10 @@
   <main class="max-w-4xl mx-auto w-full px-3 py-3 flex-1 flex flex-col items-center justify-center">
     <!-- Home / Empty State -->
     <section id="emptyState" class="w-full max-w-md mx-auto text-center flex flex-col items-center -mt-20">
-      <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-3">
+      <h2 id="heroTitle" class="text-2xl sm:text-3xl font-extrabold text-white mb-3">
         O que assistir hoje?
       </h2>
-      <p class="text-lb-muted text-base mb-7 leading-relaxed">
+      <p id="heroSubtitle" class="text-lb-muted text-base mb-7 leading-relaxed">
         Digite seu username e descubra quatro filmes novos baseados no seu gosto.
       </p>
 
@@ -83,8 +94,8 @@
     <!-- Loading -->
     <section id="loadingState" class="hidden text-center py-20">
       <div class="inline-block w-9 h-9 border-4 border-lb-border border-t-lb-green rounded-full animate-spin mb-3"></div>
-      <p id="loadingText" class="text-white text-sm font-medium">Analisando seu perfil...</p>
-      <p class="text-xs text-lb-muted mt-1">Na primeira vez pode levar alguns segundos.</p>
+      <p id="loadingText" class="text-white text-sm font-medium"></p>
+      <p id="loadingSub" class="text-xs text-lb-muted mt-1"></p>
     </section>
 
     <!-- Error -->
@@ -103,38 +114,44 @@
         <button
           id="syncBtn"
           type="button"
-          title="Sincronizar novamente com o Letterboxd"
           class="px-2 py-0.5 rounded-md bg-lb-card hover:bg-slate-700 border border-lb-border text-[11px] text-lb-muted hover:text-white transition cursor-pointer"
         >
           Sincronizar
         </button>
+        <label
+          id="importZipLabel"
+          class="px-2 py-0.5 rounded-md bg-lb-card hover:bg-slate-700 border border-lb-border text-[11px] text-lb-muted hover:text-white transition cursor-pointer"
+        >
+          <span id="importZipText">Importar .zip</span>
+          <input id="importZipInput" type="file" accept=".zip" class="hidden" />
+        </label>
       </div>
 
       <!-- Centered Compact Filters -->
       <div class="p-2.5 rounded-xl bg-lb-card/80 border border-lb-border flex flex-col items-center gap-2 text-[11px]">
         <div class="flex flex-wrap items-center justify-center gap-1">
-          <button data-filter="mood" data-val="all" class="filter-pill pill-active px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Qualquer mood</button>
-          <button data-filter="mood" data-val="light" class="filter-pill px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Leve</button>
-          <button data-filter="mood" data-val="intense" class="filter-pill px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Tenso</button>
-          <button data-filter="mood" data-val="thoughtful" class="filter-pill px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Reflexivo</button>
-          <button data-filter="mood" data-val="epic" class="filter-pill px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Épico</button>
+          <button data-filter="mood" data-val="all" data-i18n="mood_all" class="filter-pill pill-active px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Qualquer mood</button>
+          <button data-filter="mood" data-val="light" data-i18n="mood_light" class="filter-pill px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Leve</button>
+          <button data-filter="mood" data-val="intense" data-i18n="mood_intense" class="filter-pill px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Tenso</button>
+          <button data-filter="mood" data-val="thoughtful" data-i18n="mood_thoughtful" class="filter-pill px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Reflexivo</button>
+          <button data-filter="mood" data-val="epic" data-i18n="mood_epic" class="filter-pill px-2.5 py-1 rounded-full bg-lb-bg border border-lb-border cursor-pointer">Épico</button>
         </div>
 
         <div class="flex flex-wrap items-center justify-center gap-1.5 pt-1.5 border-t border-lb-border/60 w-full">
           <div class="flex items-center gap-1">
-            <button data-filter="source" data-val="all" class="filter-pill pill-active px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Mundo todo</button>
-            <button data-filter="source" data-val="watchlist" class="filter-pill px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Watchlist</button>
+            <button data-filter="source" data-val="all" data-i18n="src_all" class="filter-pill pill-active px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Mundo todo</button>
+            <button data-filter="source" data-val="watchlist" data-i18n="src_watchlist" class="filter-pill px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Watchlist</button>
           </div>
           <div class="flex items-center gap-1">
-            <button data-filter="discovery" data-val="popular" class="filter-pill px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Popular</button>
-            <button data-filter="discovery" data-val="balanced" class="filter-pill pill-active px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Equilibrado</button>
-            <button data-filter="discovery" data-val="cult" class="filter-pill px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Cult</button>
+            <button data-filter="discovery" data-val="popular" data-i18n="disc_popular" class="filter-pill px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Popular</button>
+            <button data-filter="discovery" data-val="balanced" data-i18n="disc_balanced" class="filter-pill pill-active px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Equilibrado</button>
+            <button data-filter="discovery" data-val="cult" data-i18n="disc_cult" class="filter-pill px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border cursor-pointer">Cult</button>
           </div>
           <select id="runtimeSelect" class="px-2 py-0.5 rounded-md bg-lb-bg border border-lb-border text-white focus:outline-none focus:border-lb-green">
-            <option value="">Qualquer duração</option>
-            <option value="100">Até 1h40</option>
-            <option value="125">Até 2h05</option>
-            <option value="150">Até 2h30</option>
+            <option value="" data-i18n="rt_any">Qualquer duração</option>
+            <option value="100" data-i18n="rt_100">Até 1h40</option>
+            <option value="125" data-i18n="rt_125">Até 2h05</option>
+            <option value="150" data-i18n="rt_150">Até 2h30</option>
           </select>
         </div>
       </div>
@@ -151,17 +168,15 @@
         <p id="lockedHint" class="text-[11px] text-lb-green hidden"></p>
       </div>
 
-      <!-- 4-Card Grid (compact 2x2 on tablet/desktop, 1 col on mobile) -->
+      <!-- 4-Card Grid -->
       <div id="moviesGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
 
-      <p id="noResultsMsg" class="hidden text-center text-lb-muted text-sm py-8">
-        Nenhum filme novo encontrado com esses filtros. Tente mudar o mood ou relaxar a duração.
-      </p>
+      <p id="noResultsMsg" class="hidden text-center text-lb-muted text-sm py-8"></p>
     </section>
   </main>
 
-  <footer class="border-t border-lb-border/60 py-2 text-center text-[10px] text-lb-muted">
-    Dados fornecidos pelo TMDB, IMDb e Letterboxd
+  <footer id="footerText" class="border-t border-lb-border/60 py-2 text-center text-[10px] text-lb-muted">
+    Dados fornecidos pelo TMDB e Letterboxd
   </footer>
 
   <script src="./config.js"></script>

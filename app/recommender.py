@@ -250,6 +250,50 @@ async def build_taste_profile(username: str) -> dict[str, Any]:
     return {**result, "_internal": result["_internal"]}
 
 
+REASON_STRINGS: dict[str, dict[str, str]] = {
+    "pt": {
+        "vibe": "Na vibe de {a}",
+        "similar": "Semelhante a {a}",
+        "matches": "Combina com {a} e {b}",
+        "same_dir": "Mesmo diretor de {a}",
+        "dir_by": "Dirigido por {a}",
+        "style": "Seu estilo: {a}",
+        "watchlist": "Na sua Watchlist",
+        "fallback": "Nota {a} alinhada ao seu perfil",
+    },
+    "en": {
+        "vibe": "Matches the vibe of {a}",
+        "similar": "Similar to {a}",
+        "matches": "Fits {a} and {b}",
+        "same_dir": "Same director as {a}",
+        "dir_by": "Directed by {a}",
+        "style": "Your style: {a}",
+        "watchlist": "On your Watchlist",
+        "fallback": "Rated {a} and aligned with your taste",
+    },
+    "es": {
+        "vibe": "En la onda de {a}",
+        "similar": "Similar a {a}",
+        "matches": "Combina con {a} y {b}",
+        "same_dir": "Mismo director que {a}",
+        "dir_by": "Dirigida por {a}",
+        "style": "Tu estilo: {a}",
+        "watchlist": "En tu Watchlist",
+        "fallback": "Nota {a} acorde a tu perfil",
+    },
+    "fr": {
+        "vibe": "Dans la lignée de {a}",
+        "similar": "Similaire à {a}",
+        "matches": "Proche de {a} et {b}",
+        "same_dir": "Même réalisateur que {a}",
+        "dir_by": "Réalisé par {a}",
+        "style": "Votre style : {a}",
+        "watchlist": "Dans votre Watchlist",
+        "fallback": "Note {a} proche de vos goûts",
+    },
+}
+
+
 async def generate_recommendations(
     username: str,
     mood: str = "all",
@@ -262,7 +306,11 @@ async def generate_recommendations(
     disliked_ids: Optional[list[int]] = None,
     seen_ids: Optional[list[int]] = None,
     skipped_ids: Optional[list[int]] = None,
+    lang: str = "pt",
+    region: str = "BR",
 ) -> dict[str, Any]:
+    rs = REASON_STRINGS.get(lang, REASON_STRINGS["en"])
+    reg = (region or "BR").upper()
     profile = await build_taste_profile(username)
     internal = profile.pop("_internal")
 
@@ -533,7 +581,7 @@ async def generate_recommendations(
             l_hits = liked_hits.get(tid, [])
             if l_hits:
                 score += len(l_hits) * 5.0
-                reasons.append(f"Na vibe de {l_hits[0]}")
+                reasons.append(rs["vibe"].format(a=l_hits[0]))
 
             hits = seed_hits.get(tid, [])
             if hits:
@@ -542,9 +590,9 @@ async def generate_recommendations(
                 unique_hits = list(dict.fromkeys(hits))[:2]
                 if len(reasons) < 2:
                     if len(unique_hits) == 1:
-                        reasons.append(f"Semelhante a {unique_hits[0]}")
+                        reasons.append(rs["similar"].format(a=unique_hits[0]))
                     else:
-                        reasons.append(f"Combina com {unique_hits[0]} e {unique_hits[1]}")
+                        reasons.append(rs["matches"].format(a=unique_hits[0], b=unique_hits[1]))
 
             for d in m.get("directors", []):
                 dw = director_weights.get(d["id"], 0.0) + session_director_delta.get(d["id"], 0.0)
@@ -552,7 +600,7 @@ async def generate_recommendations(
                     score += min(dw * 1.6, 5.0)
                     ref = director_movies.get(d["id"], [])
                     if len(reasons) < 2:
-                        reasons.append(f"Mesmo diretor de {ref[0]}" if ref else f"Dirigido por {d['name']}")
+                        reasons.append(rs["same_dir"].format(a=ref[0]) if ref else rs["dir_by"].format(a=d["name"]))
                 elif dw < 0:
                     score += max(dw * 1.5, -6.0)
                 break
@@ -565,7 +613,7 @@ async def generate_recommendations(
                 if gw >= 2.0:
                     matched_genres.append(g["name"])
             if matched_genres and len(reasons) < 2:
-                reasons.append(f"Seu estilo: {', '.join(matched_genres[:2])}")
+                reasons.append(rs["style"].format(a=", ".join(matched_genres[:2])))
 
             for kw in m.get("keywords", []):
                 kl = kw.lower()
@@ -588,18 +636,23 @@ async def generate_recommendations(
 
             if in_wl:
                 score += 1.6
-                reasons.insert(0, "Na sua Watchlist")
+                reasons.insert(0, rs["watchlist"])
 
             # Strongly limit superhero movies unless user clearly loves them
             if _is_superhero_movie(m) and not profile.get("likes_superhero") and not in_wl:
                 score -= 5.5
 
             if not reasons:
-                reasons.append(f"Nota {va} alinhada ao seu perfil")
+                reasons.append(rs["fallback"].format(a=va))
+
+            p_map = m.get("providers_by_region") or {}
+            providers = p_map.get(reg) or (m.get("providers_br") if reg == "BR" else []) or []
 
             scored_items.append(
                 {
                     **m,
+                    "providers": providers,
+                    "provider_region": reg,
                     "in_watchlist": in_wl,
                     "match_score": round(score, 2),
                     "reasons": reasons[:2],

@@ -88,6 +88,8 @@ def init_db() -> None:
             conn.execute("ALTER TABLE tmdb_movies ADD COLUMN imdb_rating REAL")
         if "letterboxd_rating" not in m_cols:
             conn.execute("ALTER TABLE tmdb_movies ADD COLUMN letterboxd_rating REAL")
+        if "providers_by_region_json" not in m_cols:
+            conn.execute("ALTER TABLE tmdb_movies ADD COLUMN providers_by_region_json TEXT")
 
 
 @contextmanager
@@ -220,8 +222,8 @@ def save_tmdb_movie(movie: dict[str, Any]) -> None:
                 tmdb_id, imdb_id, title, original_title, original_language, year, overview,
                 poster_path, backdrop_path, runtime, vote_average, vote_count, popularity,
                 genres_json, keywords_json, directors_json, cast_json, countries_json,
-                providers_br_json, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                providers_br_json, providers_by_region_json, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(tmdb_id) DO UPDATE SET
                 imdb_id = COALESCE(excluded.imdb_id, tmdb_movies.imdb_id),
                 title = excluded.title,
@@ -241,6 +243,7 @@ def save_tmdb_movie(movie: dict[str, Any]) -> None:
                 cast_json = excluded.cast_json,
                 countries_json = excluded.countries_json,
                 providers_br_json = excluded.providers_br_json,
+                providers_by_region_json = COALESCE(excluded.providers_by_region_json, tmdb_movies.providers_by_region_json),
                 updated_at = excluded.updated_at
             """,
             (
@@ -263,6 +266,7 @@ def save_tmdb_movie(movie: dict[str, Any]) -> None:
                 json.dumps(movie.get("cast", []), ensure_ascii=False),
                 json.dumps(movie.get("countries", []), ensure_ascii=False),
                 json.dumps(movie.get("providers_br", []), ensure_ascii=False),
+                json.dumps(movie.get("providers_by_region", {}), ensure_ascii=False),
                 time.time(),
             ),
         )
@@ -275,6 +279,7 @@ def _deserialize_movie(row: dict[str, Any]) -> dict[str, Any]:
     row["cast"] = json.loads(row.pop("cast_json") or "[]")
     row["countries"] = json.loads(row.pop("countries_json") or "[]")
     row["providers_br"] = json.loads(row.pop("providers_br_json") or "[]")
+    row["providers_by_region"] = json.loads(row.pop("providers_by_region_json") or "{}")
     return row
 
 

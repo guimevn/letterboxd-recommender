@@ -1,25 +1,24 @@
 # Letterboxd Recommender
 
-**Acesse online agora:** https://letterboxd-recommender.guimevn.workers.dev
+**Live App:** https://letterboxd-recommender.guimevn.workers.dev
 
-Sistema gratuito de recomendação de filmes baseado no perfil público do Letterboxd (favoritos, histórico completo de filmes assistidos, notas, reviews e watchlist), enriquecido com metadados e disponibilidade de streaming no Brasil via TMDB API.
+A free, mobile-first movie recommender powered by your public Letterboxd profile (ratings, reviews, favorites, and watchlist) and the TMDB API. Enter any Letterboxd username and get 4 tailored movie picks at a time.
 
-## Funcionalidades
+## Features
 
-- **Entrada simples por username:** basta digitar o `@` do Letterboxd para sincronizar favoritos, filmes assistidos, notas, reviews e watchlist em cache local (SQLite).
-- **4 opções por vez com trava:** exibe exatamente 4 filmes inéditos por rodada, com ações de **Gostei** (fixa o filme e direciona as próximas buscas para aquela vibe), **Não gostei** (substitui na hora e evita aquele estilo), **Já vi** (substitui e reforça o perfil) e **Pular** (substitui e evita no momento).
-- **Análise completa do perfil:** lê 100% dos filmes assistidos e das reviews escritas pelo usuário, cruzando diretores, gêneros, temas, elenco, décadas e idioma.
-- **Filtros de contexto:** Mood (Leve, Tenso, Reflexivo, Épico), Origem (Mundo todo ou Watchlist), Nível de descoberta (Popular, Equilibrado, Cult) e Duração máxima.
-- **Apenas filmes:** não recomenda séries nem minisséries; documentários só entram quando o histórico do usuário demonstra afinidade.
-- **Notas e streaming:** exibe a nota oficial do Letterboxd e os streamings disponíveis no Brasil.
+- **Username-only entry:** type any public Letterboxd `@username` to get recommendations immediately, plus an optional `.zip` import for 100% history and watchlist analysis in cloud deployments.
+- **4 picks at a time with live feedback:** lock movies you **Like** so the next refresh follows that vibe, or click **Dislike**, **Seen**, or **Skip** to replace a card instantly and steer the session.
+- **Context filters:** Mood (Light, Intense, Thoughtful, Epic), Source (Worldwide or Watchlist), Discovery level (Popular, Balanced, Cult), and Max runtime.
+- **Movies only:** excludes TV shows and miniseries; documentaries only appear when your profile shows affinity for them; superhero movies are limited unless you clearly love them.
+- **Multi-language and regional streaming:** auto-detects browser language and region (`PT`, `EN`, `ES`, `FR`) and displays local streaming availability via TMDB alongside Letterboxd ratings.
 
-## Como executar localmente
+## Run Locally
 
-### 1. Pré-requisitos
-- Python 3.10+ (recomendado Python 3.12)
-- Chave gratuita da API do [TMDB](https://www.themoviedb.org/settings/api)
+### 1. Prerequisites
+- Python 3.10+ (Python 3.12 recommended)
+- Free [TMDB API](https://www.themoviedb.org/settings/api) Read Access Token
 
-### 2. Instalação
+### 2. Setup
 ```bash
 git clone https://github.com/guimevn/letterboxd-recommender.git
 cd letterboxd-recommender
@@ -33,39 +32,24 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Variáveis de ambiente
-Copie `.env.example` para `.env` e preencha sua chave gratuita do TMDB:
+### 3. Environment Variables
+Copy `.env.example` to `.env` and add your TMDB token:
 ```env
-TMDB_READ_ACCESS_TOKEN=seu_token_aqui
-TMDB_API_KEY=sua_api_key_aqui
+TMDB_READ_ACCESS_TOKEN=your_tmdb_read_access_token_here
 ```
-O arquivo `.env` está listado no `.gitignore` e nunca deve ser enviado ao repositório.
 
-### 4. Executar
+### 4. Start the Server
 ```bash
 uvicorn main:app --reload
 ```
-Abra `http://127.0.0.1:8000` no navegador.
+Open `http://127.0.0.1:8000` in your browser.
 
-## Estrutura do projeto
+## Architecture
 
-```
-letterboxd-recommender/
-├── app/
-│   ├── db.py           # Cache SQLite local
-│   ├── letterboxd.py   # Coleta assíncrona do perfil, favoritos, watchlist e reviews
-│   ├── tmdb.py         # Cliente TMDB e notas do Letterboxd
-│   └── recommender.py  # Motor de perfil de gosto e recomendações
-├── frontend/
-│   ├── index.html      # Interface mobile-first centralizada
-│   └── app.js          # Lógica de 4 opções, trava e feedback na sessão
-├── tests/
-│   └── test_smoke.py   # Teste ponta a ponta
-├── main.py             # API FastAPI + servidor do frontend
-├── requirements.txt
-└── .env.example
-```
+- **Frontend:** HTML, Tailwind CSS, and modular JavaScript hosted on **Cloudflare Workers** (`wrangler.jsonc`).
+- **Backend:** Python, FastAPI, Uvicorn, SQLite, `httpx`, and `curl_cffi` hosted on **Render** (`render.yaml`).
+- **Data:** Letterboxd (full HTML scrape locally, automatic official RSS fallback in cloud + optional `.zip` export import) and TMDB API.
 
-## Licença
+## License
 
-MIT. Veja o arquivo [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

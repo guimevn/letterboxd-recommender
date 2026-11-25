@@ -125,16 +125,19 @@ class TMDBClient:
         genres = [{"id": g["id"], "name": g["name"]} for g in data.get("genres", [])]
         countries = [c["iso_3166_1"] for c in data.get("production_countries", [])]
 
-        br_providers_raw = (
-            (data.get("watch/providers") or {}).get("results", {}).get("BR", {}).get("flatrate", [])
-        )
-        providers_br = [
-            {
-                "name": p["provider_name"],
-                "logo_path": f"{IMG_BASE}/w92{p['logo_path']}" if p.get("logo_path") else None,
-            }
-            for p in br_providers_raw[:5]
-        ]
+        providers_results = (data.get("watch/providers") or {}).get("results", {})
+        providers_by_region: dict[str, list[dict[str, Any]]] = {}
+        for rc in ("BR", "US", "ES", "FR", "PT", "MX", "GB", "CA", "AR"):
+            flat = (providers_results.get(rc) or {}).get("flatrate", [])
+            if flat:
+                providers_by_region[rc] = [
+                    {
+                        "name": p["provider_name"],
+                        "logo_path": f"{IMG_BASE}/w92{p['logo_path']}" if p.get("logo_path") else None,
+                    }
+                    for p in flat[:5]
+                ]
+        providers_br = providers_by_region.get("BR", [])
 
         movie = {
             "tmdb_id": data["id"],
@@ -156,6 +159,7 @@ class TMDBClient:
             "cast": cast,
             "countries": countries,
             "providers_br": providers_br,
+            "providers_by_region": providers_by_region,
         }
         db.save_tmdb_movie(movie)
         return movie

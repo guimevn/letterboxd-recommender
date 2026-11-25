@@ -1,7 +1,10 @@
+import csv
+import io
 import os
 import re
+import zipfile
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -104,6 +107,8 @@ async def get_recommendations(
     disliked_ids: Optional[str] = Query(None),
     seen_ids: Optional[str] = Query(None),
     skipped_ids: Optional[str] = Query(None),
+    lang: str = Query("pt", pattern="^(pt|en|es|fr)$"),
+    region: str = Query("BR", min_length=2, max_length=2),
 ):
     uname = _validate_username(username)
     user = db.get_user(uname)
@@ -138,6 +143,8 @@ async def get_recommendations(
             disliked_ids=_parse_id_list(disliked_ids),
             seen_ids=_parse_id_list(seen_ids),
             skipped_ids=_parse_id_list(skipped_ids),
+            lang=lang,
+            region=region.upper(),
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
@@ -155,3 +162,98 @@ def dismiss_film(username: str, tmdb_id: int, body: DismissBody):
     reason = body.reason if body.reason in ("seen", "not_interested", "disliked") else "not_interested"
     db.dismiss_movie(uname, tmdb_id, reason)
     return {"ok": True, "tmdb_id": tmdb_id, "reason": reason}
+
+
+def _slug_from_lb_uri(uri: str, title: str) -> str:
+    m = re.search(r"/film/([^/]+)/?", uri or "")
+    if m:
+        return m.group(1)
+    return re.sub(r"[^a-z0-9]+", "-", (title or "").lower()).strip("-")
+
+
+@app.post("/api/import/{username}")
+async def import_letterboxd_zip(username: str, file: UploadFile = File(...)):
+    """Optional full-profile import from official Letterboxd .zip export (100% watched + watchlist + reviews)."""
+    uname = _validate_username(username)
+    raw = await file.read()
+    if len(raw) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Arquivo muito grande (limite 20MB).")
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(raw))
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Envie o arquivo .zip exportado do Letterboxd.")
+
+    merged: dict[str, dict] = {}
+
+    def _read_csv(name: str):
+        for zname in zf.namelist():
+            if zname.endswith(name):
+                with zf.open(zname) as fh:
+                    return list(csv.DictReader(io.TextIOWrapper(fh, encoding="utf-8", errors="replace")))
+        return []
+
+    def _ensure(row: dict) -> Optional[dict]:
+        title = (row.get("Name") or "").strip()
+        if not title:
+            return None
+        slug = _slug_from_lb_uri(row.get("Letterboxd URI", ""), title)
+        year_s = (row.get("Year") or "").strip()
+        year = int(year_s) if year_s.isdigit() else None
+        if slug not in merged:
+            merged[slug] = {
+                "slug": slug,
+                "title": title,
+                "year": year,
+                "rating": None,
+                "liked": False,
+                "is_favorite": False,
+                "in_watched": False,
+                "in_watchlist": False,
+                "review_text": None,
+            }
+        return merged[slug]
+
+    for row in _read_csv("watched.csv"):
+        f = _ensure(row)
+        if f:
+            f["in_watched"] = True
+
+    for row in _read_csv("ratings.csv"):
+        f = _ensure(row)
+        if f:
+            f["in_watched"] = True
+            try:
+                f["rating"] = float(row.get("Rating") or 0) or None
+            except ValueError:
+                pass
+
+    for row in _read_csv("reviews.csv"):
+        f = _ensure(row)
+        if f:
+            f["in_watched"] = True
+            txt = (row.get("Review") or "").strip()
+            if txt:
+                f["review_text"] = txt
+
+    for row in _read_csv("watchlist.csv"):
+        f = _ensure(row)
+        if f:
+            f["in_watchlist"] = True
+
+    for row in _read_csv("likes/films.csv"):
+        f = _ensure(row)
+        if f:
+            f["liked"] = True
+
+    if not merged:
+        raise HTTPException(status_code=400, detail="Nenhum CSV do Letterboxd encontrado dentro do .zip.")
+
+    existing = db.get_user(uname) or {}
+    db.save_user_profile(
+        username=uname,
+        display_name=existing.get("display_name") or uname,
+        avatar_url=existing.get("avatar_url"),
+        films=list(merged.values()),
+    )
+    return db.get_user(uname)

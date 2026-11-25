@@ -693,8 +693,11 @@ async def generate_recommendations(
             if len(final) >= limit:
                 break
 
-    # Fetch real IMDb and Letterboxd ratings for the final 4 movies (cached in SQLite)
-    await tmdb.enrich_external_ratings(final)
+    # Fetch real Letterboxd ratings and localize titles/genres for the final 4 movies
+    await asyncio.gather(
+        tmdb.enrich_external_ratings(final),
+        tmdb.localize_movies(final, lang),
+    )
 
     return {
         "profile": profile,

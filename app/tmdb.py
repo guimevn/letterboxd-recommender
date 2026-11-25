@@ -216,3 +216,22 @@ class TMDBClient:
         else:
             async with httpx.AsyncClient(follow_redirects=True) as session:
                 await asyncio.gather(*(_fetch_one(session, m) for m in needs_fetch))
+
+    async def localize_movies(self, movies: list[dict[str, Any]], lang: str) -> None:
+        """Translate title and genre names of the final 4 movies when lang is not pt."""
+        lang_map = {"en": "en-US", "es": "es-ES", "fr": "fr-FR"}
+        tmdb_lang = lang_map.get(lang)
+        if not tmdb_lang or not movies:
+            return
+
+        async with httpx.AsyncClient() as client:
+            async def _loc_one(m: dict[str, Any]) -> None:
+                d = await self._get(client, f"/movie/{m['tmdb_id']}", {"language": tmdb_lang})
+                if not d:
+                    return
+                if d.get("title"):
+                    m["title"] = d["title"]
+                if d.get("genres"):
+                    m["genres"] = [{"id": g["id"], "name": g["name"]} for g in d["genres"]]
+
+            await asyncio.gather(*(_loc_one(m) for m in movies))
